@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "restrack"
+description = "Python application to for results tracking."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "vvcb" }]
+dependencies = [
+    "holoviews",
+    "pandas",
+    "panel",
+    "pyodbc",
+    "python-dotenv",
+    "sqlmodel",
+    "watchfiles",
+]
+dynamic = ["version"]
+
+[tool.setuptools]
+packages = ["restrack"]
+
+[tool.setuptools.dynamic]
+version = { attr = "restrack.__version__" }
+
+[project.urls]
+Homepage = "https://github.com/vvcb/restrack"
+Documentation = "https://vvcb.github.io/restrack/"
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "jupyterlab_code_formatter",
+    "jupyterlab",
+    "mkdocs-material",
+    "mkdocs",
+    "mkdocstrings-python",
+    "mkdocstrings",
+    "nbstripout",
+    "pre-commit",
+    "pyyaml",
+]
+
+[tool.isort]
+profile = "black"
