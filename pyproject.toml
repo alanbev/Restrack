@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv",
     "sqlmodel",
     "watchfiles",
+    "fastapi"
 ]
 dynamic = ["version"]
 
