@@ -563,7 +563,7 @@ class CONCEPT(SQLModel, table=True):
 #     invalid_reason: Optional[str] = Field(max_length=1)
 
 
-class ORDERS(SQLModel, table=True):
+class ORDER(SQLModel, table=True):
     __table_args__ = {"schema": "alan"}
     __tablename__ = "src_flex__orders"
     order_id: int = Field(default=None, primary_key=True)
