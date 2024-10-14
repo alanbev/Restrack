@@ -450,13 +450,12 @@ class PROVIDER(SQLModel, table=True):
 #     metadata_type_concept_id: int
 #     name: str = Field(max_length=250)
 #     value_as_string: Optional[str] = Field(max_length=250)
-#     value_as_concept_id: Optional[int]
-#     value_as_number: Optional[float]
-#     metadata_date: Optional[date]
-#     metadata_datetime: Optional[datetime]
-
-# # HINT DISTRIBUTE ON RANDOM
-# class CDM_SOURCE(SQLModel, table=True):
+#     value_as_concept_id: Optional[int
+#     value_as_number: Optional[float
+#     metadata_date: Optional[date
+#     metadata_datetime: Optional[datetime
+# # HINT DISTRIBUTE ON RANDO
+# class CDM_SOURCE(SQLModel, table=True)
 #     cdm_source_name: str = Field(max_length=255)
 #     cdm_source_abbreviation: str = Field(max_length=25)
 #     cdm_holder: str = Field(max_length=255)
