@@ -1,3 +1,4 @@
 import panel as pn
-from ui import find_investigations
-find_investigations
+from ui.find_investigations import Find_investigations
+
+my_investigations = Find_investigations()

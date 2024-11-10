@@ -12,7 +12,6 @@ load_dotenv(find_dotenv())
 
 DATABASE_CONNECTION_STRING = os.getenv("DATABASE_CONNECTION_STRING")
 
-
 engine = create_engine(DATABASE_CONNECTION_STRING)
 
 def orders_for_patient(patient_id):
@@ -24,12 +23,9 @@ def orders_for_patient(patient_id):
     orders_df.sort_values(by='order_datetime', ascending=False, inplace=True) 
     orders_df['order_datetime'] = pd.to_datetime(orders_df['order_datetime'], format='mixed')
     orders_df['order_datetime'] = orders_df['order_datetime'].dt.strftime('%d/%m/%Y')
-    orders_df.rename(columns={'order_datetime':'Date','proc_name':'Investigation'}, inplace=True)
-    print(orders_df)
- 
-   
+
     return orders_df
     
 
 
-orders_for_patient(2752126)
+#orders_for_patient(2752126)
