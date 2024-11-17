@@ -1,23 +1,23 @@
 import panel as pn
 from restrack.data_access.find_orders import orders_for_patient
+from restrack.data_access.find_ttables_for_user import find_ttables
 from functools import partial
 import pandas as pd
 #from data_access import store_tags
 
 class Find_investigations():
 
-    def __init__(self,user):
+    def __init__(self,user):  
+        self.user='user1'
         pn.extension('tabulator',sizing_mode="stretch_width")
         self.taglist=pd.DataFrame()#initalise variable for update taglist-part of failed attempt to put an event listener on the table
         self.display_handler()
-        self.user=user
+     
 
     def update_taglist(self,table):
         #attempt to get round Tabulator not updating by attatching onClick even listener - fails because onCLick does not appear to run
         print ("updater run")
         self_taglist=(table.selected_dataframe).copy()
-
-
 
     def clickhandler(self,clicked):
         if clicked:
@@ -27,7 +27,8 @@ class Find_investigations():
     
     def selection_saver(self,tabulator_object):
         print("function has run" )
-        print (tabulator_object.selected_dataframe)
+        selection = tabulator_object.selected_dataframe
+
         #This fails because the tabulator object sent from self.result does not update form the panel
         #Therefore altered this function to use the global df "taglist whic"
         #print(self.taglist.head(6))
@@ -43,6 +44,10 @@ class Find_investigations():
         table.on_click(self.update_taglist(table))
         return table
     
+    def show_tracking_tables(self):
+        #self.user isn't recognised as an arg so substituted sting literal meanwhile
+        ttables_for_user = pn.widgets.Tabulator(find_ttables(self.user),selectable='checkbox', selection=[])
+        return ttables_for_user
 
     def display_handler(self): 
         hosp_numb = pn.widgets.TextInput(name='Hospital number', width = 200)
@@ -58,7 +63,7 @@ class Find_investigations():
         pn.panel(pn.bind(self.clickhandler2, select_button))
 
         #print("self.result", type(self.result), "table",type(table),"display_table", type(display_table))
-      
+        display_tracking_tables=self.show_tracking_tables()
 
         output=pn.template.GoldenTemplate(
         title="Select Investigations To Tag",
@@ -66,6 +71,8 @@ class Find_investigations():
         pn.Column(
         pn.Row(hosp_numb, enter_hosp_no),
         pn.Row(display_table),
+        pn.Row("Select the tables you want to track on"),
+        pn.Row(display_tracking_tables),
         pn.Row(select_button))]
         ).servable()    
 
