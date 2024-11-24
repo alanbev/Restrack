@@ -7,8 +7,6 @@ class Login():
         pn.extension(notifications=True)
         self.username= 'user1'#pn.state.user
         self.server=self.start_server()
-       
-
 
     def login(self):
         logout = pn.widgets.Button(name="Log out")

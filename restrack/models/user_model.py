@@ -18,8 +18,8 @@ class Link_user_to_tlist(SQLModel, table=True):
      #__table_args__ = {"schema": "alan"}
     __tablename__ = "link_user_to_tlist"
     index: int = Field(default=None, primary_key=True)
-    user_number:int
-    ttable_number:int
+    user_number: int
+    ttable_number: int
 
 class Ttable(SQLModel, table=True):
      #__table_args__ = {"schema": "alan"}

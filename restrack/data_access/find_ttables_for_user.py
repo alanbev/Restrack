@@ -13,7 +13,8 @@ engine = create_engine("sqlite:///././data/users.db")
 def find_ttables(user_name):
     if user_name!="":
         with Session(engine) as session:
-            statement = select(um.Ttable_names.ttable_name).outerjoin_from(um.Users, um.Link_user_to_tlist, um.Users.user_number == um.Link_user_to_tlist.user.number).outerjoin_from(um.Link_user_to_tlist,um.Ttable_names,um.Link_user_to_tlist == um.Ttable_names.ttable_name).where(um.ORDER.user_name == user_name) 
+            statement = select(um.Ttable_names.ttable_name).outerjoin_from(um.Users, um.Link_user_to_tlist, um.Users.user_number == um.Link_user_to_tlist.user_number).outerjoin_from(um.Link_user_to_tlist,um.Ttable_names,um.Link_user_to_tlist.ttable_number== um.Ttable_names.ttable_number).where(um.Users.user_name == user_name) 
+
             tracking_table_df= pd.read_sql(statement,session.bind)
 
     return tracking_table_df
