@@ -3,46 +3,40 @@ from restrack.data_access.find_orders import orders_for_patient
 from restrack.data_access.find_ttables_for_user import find_ttables
 from functools import partial
 import pandas as pd
+from bokeh.io import curdoc
+
+
 #from data_access import store_tags
 
 class Find_investigations():
 
     def __init__(self,user):  
+        curdoc().clear()
         self.user='user1'
         pn.extension('tabulator',sizing_mode="stretch_width")
+        self.results_tabulator_object = pn.widgets.Tabulator()
         self.taglist=pd.DataFrame()#initalise variable for update taglist-part of failed attempt to put an event listener on the table
         self.display_handler()
      
 
-    def update_taglist(self,table):
-        #attempt to get round Tabulator not updating by attatching onClick even listener - fails because onCLick does not appear to run
-        print ("updater run")
-        self_taglist=(table.selected_dataframe).copy()
-
     def clickhandler(self,clicked):
         if clicked:
-            tab=self.result
-            return tab
-        return ""
+            return self.binding1
+      
     
-    def selection_saver(self,tabulator_object):
+    def selection_saver(self):
         print("function has run" )
-        selection = tabulator_object.selected_dataframe
-
-        #This fails because the tabulator object sent from self.result does not update form the panel
-        #Therefore altered this function to use the global df "taglist whic"
-        #print(self.taglist.head(6))
+        selection = self.results_tabulator_object.selected_dataframe
+        print(selection)
     
-
     def clickhandler2(self, clicked):
             if (clicked):
-             return self.save_selection
-             #store_tags(self.table.selected_dataframe)
+                self.selection_saver()
+            
 
     def show_table(self,hn):
-        table = pn.widgets.Tabulator(orders_for_patient(hn),selectable='checkbox', selection=[1,2], hidden_columns=['index','order_id'])
-        table.on_click(self.update_taglist(table))
-        return table
+        self.results_tabulator_object = pn.widgets.Tabulator(orders_for_patient(hn),selectable='checkbox', selection=[], hidden_columns=['index','order_id'])
+        return self.results_tabulator_object
     
     def show_tracking_tables(self):
         #self.user isn't recognised as an arg so substituted sting literal meanwhile
@@ -53,27 +47,24 @@ class Find_investigations():
         hosp_numb = pn.widgets.TextInput(name='Hospital number', width = 200)
         enter_hosp_no = pn.widgets.Button(name="Enter",button_type='primary', width=100)
         select_button=pn.widgets.Button(name="Tag Selected Investigations", button_type='primary',width=500)
+        table_select_button=pn.widgets.Button(name="Select table to track on", button_type='primary',width=500)
         hn=hosp_numb.param.value
-
-        #the convoluted series of bindings that seem to be needed to make buttons send args to functions in Panel!
-        self.result = pn.bind(self.show_table, hn) 
-        table = pn.bind(self.clickhandler,enter_hosp_no)
-        display_table=pn.panel(table)
-        self.save_selection = pn.bind(self.selection_saver, self.result)#self.result is the only variable that provides access to tabululator object. "table" appears to be class str" However doesn't appear to be updated by checkbox selection in the displayed panel
+        self.binding1=pn.bind(self.show_table, hn) 
+        show_table=pn.bind(self.clickhandler,enter_hosp_no)
         pn.panel(pn.bind(self.clickhandler2, select_button))
 
-        #print("self.result", type(self.result), "table",type(table),"display_table", type(display_table))
-        display_tracking_tables=self.show_tracking_tables()
+
 
         output=pn.template.GoldenTemplate(
         title="Select Investigations To Tag",
         main=[
         pn.Column(
         pn.Row(hosp_numb, enter_hosp_no),
-        pn.Row(display_table),
+        pn.Row(pn.panel(show_table)),
+        pn.Row(select_button),
         pn.Row("Select the tables you want to track on"),
-        pn.Row(display_tracking_tables),
-        pn.Row(select_button))]
+        #pn.Row(display_tracking_tables),
+        pn.Row(table_select_button))]
         ).servable()    
 
         pn.serve(output,port=5000)
