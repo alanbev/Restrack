@@ -17,7 +17,7 @@ dependencies = [
     "python-dotenv",
     "sqlmodel",
     "watchfiles",
-    "fastapi"
+    "fastapi[standard]",
 ]
 dynamic = ["version"]
 
@@ -31,20 +31,5 @@ version = { attr = "restrack.__version__" }
 Homepage = "https://github.com/vvcb/restrack"
 Documentation = "https://vvcb.github.io/restrack/"
 
-[project.optional-dependencies]
-dev = [
-    "black",
-    "isort",
-    "jupyterlab_code_formatter",
-    "jupyterlab",
-    "mkdocs-material",
-    "mkdocs",
-    "mkdocstrings-python",
-    "mkdocstrings",
-    "nbstripout",
-    "pre-commit",
-    "pyyaml",
-]
-
-[tool.isort]
-profile = "black"
+[dependency-groups]
+dev = ["black>=24.10.0", "jupyterlab>=4.3.3", "pre-commit>=4.0.1"]
