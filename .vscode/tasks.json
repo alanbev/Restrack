@@ -1,0 +1,23 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Panel Development Server",
+            "type": "shell",
+            "command": "panel serve ./restrack/ui/ui.py --global-loading-spinner --basic-auth ./data/users.json --cookie-secret restrack_secret --dev ",
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "FastAPI Development Server",
+            "type": "shell",
+            "command": "fastapi dev ./restrack/api/api.py",
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+    ]
+}

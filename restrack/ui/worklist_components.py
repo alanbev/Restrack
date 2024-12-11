@@ -1,22 +1,20 @@
 import panel as pn
 from restrack.models.worklist import WorkList
 import requests
-from dotenv import load_dotenv, find_dotenv
 import os
 
-load_dotenv(find_dotenv())
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").strip("/")
 
 
-def create_worklist_form(user: int):
+def create_worklist_form(user_id: int):
     def submit(event):
         if not event:
             return
         btn_create.loading = True
         try:
             data = WorkList(
-                name=name.value, description=description.value, created_by=user
+                name=name.value, description=description.value, created_by=user_id
             )
             print(data.model_dump_json())
             r = requests.post(API_URL + "/worklists/", data=data.model_dump_json())
@@ -52,3 +50,19 @@ def create_worklist_form(user: int):
     )
 
     return form
+
+
+def display_worklist(user_id: int):
+    # Get worklists for user
+    if not user_id:
+        return
+
+    r = requests.get(f"{API_URL}/user_worklists/{user_id}")
+    items = r.json()
+
+    options = {i["name"]: i["id"] for i in items}
+
+    s = pn.widgets.Select(name="Worklists", options=options)
+    b = pn.widgets.Button(name=">>", button_type="primary")
+
+    return pn.Row(s, b)

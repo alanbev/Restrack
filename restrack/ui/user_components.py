@@ -2,11 +2,9 @@
 
 import panel as pn
 import os
-from dotenv import load_dotenv, find_dotenv
 from restrack.models.worklist import User
 import requests
 
-load_dotenv(find_dotenv())
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").strip("/")
 

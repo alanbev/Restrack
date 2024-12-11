@@ -3,6 +3,7 @@ from typing import Optional
 from enum import Enum
 
 from sqlmodel import Field, SQLModel
+from pydantic import BaseModel
 
 
 class WorkListRole(str, Enum):
@@ -29,6 +30,12 @@ class User(SQLModel, table=True):
     email: str
     password: str
     # created_at: datetime | None = Field(default=datetime.today())
+
+
+class UserSecure(BaseModel):
+    id: int
+    username: str
+    email: str
 
 
 class WorkList(SQLModel, table=True):
