@@ -10,7 +10,21 @@ API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").strip("/")
 
 
 def create_user_form():
+    """
+    Creates a form for user creation with fields for username, email, and password.
+    Includes submit and clear buttons with associated event handlers.
+
+    Returns:
+        pn.Column: A Panel Column object containing the user creation form.
+    """
+
     def submit(event):
+        """
+        Handles the submit button click event. Sends a POST request to create a new user.
+
+        Args:
+            event: The event object associated with the button click.
+        """
         if not event:
             return
         btn_create.loading = True
@@ -32,6 +46,12 @@ def create_user_form():
             btn_create.loading = False
 
     def clear(event):
+        """
+        Handles the clear button click event. Resets the form fields to empty values.
+
+        Args:
+            event: The event object associated with the button click.
+        """
         if not event:
             return
         username.value = ""

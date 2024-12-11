@@ -21,8 +21,11 @@ DB_RESTRACK = os.getenv("DB_RESTRACK", "sqlite:///restrack.db")
 DB_OMOP = os.getenv("DB_CDM")
 
 engine_app_db: Engine = create_engine(url=DB_RESTRACK)
-# engine_cdm: Engine = create_engine(url=DB_OMOP)
 
+# ToDo: (VC) I haven't been able to find a way of connecting to two different databases
+# at the same time
+
+# engine_cdm: Engine = create_engine(url=DB_OMOP)
 # ORDER.__table__.create(engine_cdm, checkfirst=True)
 
 
@@ -263,7 +266,7 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
         and_(UserWorkList.worklist_id == WorkList.id, UserWorkList.user_id == user_id)
     )
 
-    worklists = session.exec(statement)
+    worklists = session.exec(statement).fetchall()
 
     if not worklists:
         raise HTTPException(status_code=404, detail="WorkList not found")
