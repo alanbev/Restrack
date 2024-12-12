@@ -1,12 +1,8 @@
 # Reusable UI Components
 
 import panel as pn
-import os
-from restrack.models.worklist import User
 import requests
-
-
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").strip("/")
+from restrack.config import API_URL
 
 
 def create_user_form():
@@ -29,7 +25,7 @@ def create_user_form():
             return
         btn_create.loading = True
         try:
-            data = User(
+            data = dict(
                 username=username.value, email=email.value, password=password.value
             )
             print(data.model_dump_json())

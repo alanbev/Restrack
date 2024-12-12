@@ -14,11 +14,8 @@ Usage:
 """
 
 import panel as pn
-from restrack.models.worklist import WorkList
 import requests
-import os
-
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").strip("/")
+from restrack.config import API_URL
 
 
 def create_worklist_form(user_id: int):
@@ -37,7 +34,7 @@ def create_worklist_form(user_id: int):
             return
         btn_create.loading = True
         try:
-            data = WorkList(
+            data = dict(
                 name=name.value, description=description.value, created_by=user_id
             )
             print(data.model_dump_json())
@@ -88,7 +85,16 @@ def display_worklist(user_id: int):
 
     options = {i["name"]: i["id"] for i in items}
 
-    s = pn.widgets.Select(name="Worklists", options=options)
-    b = pn.widgets.Button(name=">>", button_type="primary")
+    # s = pn.widgets.Select(name="Worklists", options=options)
+    # b = pn.widgets.Button(name=">>", button_type="primary")
 
-    return pn.Row(s, b)
+    tg = pn.widgets.ToggleGroup(
+        widget_type="button",
+        behavior="radio",
+        options=options,
+        # button_type="primary",
+        orientation="vertical",
+        sizing_mode="scale_width",
+    )
+
+    return tg

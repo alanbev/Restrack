@@ -14,7 +14,7 @@
         {
             "label": "FastAPI Development Server",
             "type": "shell",
-            "command": "fastapi dev ./restrack/api/api.py",
+            "command": "fastapi dev --port 8000 ./restrack/api/api.py",
             "problemMatcher": [
                 "$python"
             ]

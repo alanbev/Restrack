@@ -8,13 +8,13 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, and_, create_engine, select
 
-from restrack.models.cdm import Order
 from restrack.models.worklist import (
     OrderWorkList,
     User,
     UserSecure,
     UserWorkList,
     WorkList,
+    OrderResponse,
 )
 
 DB_RESTRACK = os.getenv("DB_RESTRACK", "sqlite:///restrack.db")
@@ -37,14 +37,20 @@ async def lifespan(app: FastAPI):
     Args:
         app (FastAPI): The FastAPI application instance.
     """
-    # Create database and table if not exists
-    SQLModel.metadata.create_all(engine_app_db)
-    yield
+    try:
+        # Create database and table if not exists
+        SQLModel.metadata.create_all(engine_app_db)
+    except Exception as e:
+        print(e)
+    finally:
+        yield
     # Clean up connection
     engine_app_db.dispose()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+)
 
 
 def get_app_db_session():
@@ -273,7 +279,7 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
     return worklists
 
 
-@app.get(path="/worklist_orders/{worklist_id}", response_model=List[Order])
+@app.get(path="/worklist_orders/{worklist_id}", response_model=List[OrderResponse])
 def get_worklist_orders(
     worklist_id: int, session: Session = Depends(get_app_db_session)
 ):
@@ -298,13 +304,25 @@ def get_worklist_orders(
 
     with pyodbc.connect(DB_OMOP) as cnxn:
         o = ",".join(str(i) for i in order_ids)
-        sql = f"select * from promptly.alan.src_flex__orders sfo where sfo.order_id in ({o})"
+        sql = f"""
+            select
+                sfo.patient_id,
+                sfo.order_id,
+                sfo.proc_name,
+                sfo.order_datetime,
+                sfo.in_progress,
+                sfo.partial,
+                sfo.complete
+            from promptly.alan.src_flex__orders sfo
+            where sfo.order_id in ({o})
+            and sfo.cancelled is null
+            """
 
         cursor = cnxn.execute(sql)
         columns = [c[0] for c in cursor.description]
         results = []
         for row in cursor.fetchall():
             r = dict(zip(columns, row))
-            results.append(Order(**r))
+            results.append(OrderResponse(**r))
 
         return results
