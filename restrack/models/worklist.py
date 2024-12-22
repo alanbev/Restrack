@@ -32,12 +32,6 @@ class User(SQLModel, table=True):
     # created_at: datetime | None = Field(default=datetime.today())
 
 
-class UserSecure(BaseModel):
-    id: int
-    username: str
-    email: str
-
-
 class WorkList(SQLModel, table=True):
     """
     Represents a work list.
@@ -76,10 +70,29 @@ class OrderWorkList(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     order_id: int
     worklist_id: int = Field(foreign_key="worklist.id")
-
-
-# engine: Engine = create_engine(url="sqlite:///restrack.db")
+    status: int | None = Field(default=0)
+    priority: int | None = Field(default=0)
 
 
 def create_db_and_tables(engine):
     SQLModel.metadata.create_all(bind=engine)
+
+
+# Pydantic Response Models
+# These are different from the ORM SQL Models above and are used in API response
+
+
+class UserSecure(BaseModel):
+    id: int
+    username: str
+    email: str
+
+
+class OrderResponse(BaseModel):
+    patient_id: int
+    order_id: int
+    proc_name: str
+    order_datetime: datetime
+    in_progress: Optional[datetime]
+    partial: Optional[datetime]
+    complete: Optional[datetime]
