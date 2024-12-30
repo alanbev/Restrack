@@ -28,8 +28,8 @@ def create_user_form():
             data = dict(
                 username=username.value, email=email.value, password=password.value
             )
-            print(data.model_dump_json())
-            r = requests.post(API_URL + "/users/", data=data.model_dump_json())
+            #print(data.model_dump_json())
+            r = requests.post(API_URL + "/users/", data)
 
             if r.status_code != 200:
                 raise requests.exceptions.HTTPError(r.status_code, request=r.request)

@@ -8,6 +8,8 @@ def display_orders(worklist_id: int):
     r = requests.get(f"{API_URL}/worklist_orders/{worklist_id}")
     if r.status_code == 200:
         df = pd.DataFrame(r.json())
+    else:
+        df=pd.DataFrame()
 
     tbl = pn.widgets.Tabulator(
         df,
