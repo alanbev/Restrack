@@ -20,7 +20,7 @@ Usage:
 """
 
 import panel as pn
-from restrack.ui.user_components import create_user_form
+from restrack.ui.user_components import create_user_form, logout
 from restrack.ui.worklist_components import create_worklist_form, display_worklist
 from restrack.ui.order_components import display_orders
 import requests
@@ -122,6 +122,18 @@ user_welcome = pn.Column(
     align=("center", "center"),
 )
 template.sidebar.append(user_welcome)
+
+#log out
+
+btn_log_out = pn.widgets.Button(
+    name="Log Out",
+    button_type="primary",
+    icon="logout",
+    sizing_mode="scale_width",
+)
+
+btn_log_out.js_on_click(code="""window.location.href = './logout'""")
+template.sidebar.append(btn_log_out)
 
 template.sidebar.append(pn.layout.Divider())
 template.sidebar.append("## Worklists")

@@ -67,3 +67,7 @@ def create_user_form():
     user_form = pn.Column(username, email, password, pn.Row(btn_create, btn_clear))
 
     return user_form
+
+def logout():
+    """logs out user"""
+    
