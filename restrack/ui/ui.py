@@ -58,15 +58,21 @@ pn.state.cache["current_user"] = current_user
 
 
 def worklist_selected(event: Event):
-    if not event:
+    print(f"Worklist selected: {event.new}")  # Debug logging
+    if event.new is None:
         return
-    # worklist_id = worklist_select[0].value
-    worklist_id = event.new
+    worklist_id = event.new[0]
 
-    tbl = display_orders(worklist_id)
-
-    orders_table_placeholder.clear()
-    orders_table_placeholder.append(tbl)
+    try:
+        print ("Woeklisr ID",worklist_id)
+      
+        tbl = display_orders(worklist_id)
+        orders_table_placeholder.clear()
+        orders_table_placeholder.append(tbl)
+    except Exception as e:
+        print(f"Error displaying orders: {e}")  # Debug logging
+        orders_table_placeholder.clear()
+        orders_table_placeholder.append(pn.pane.Markdown("Error loading orders"))
 
 
 def open_worklist_form(event):
@@ -80,11 +86,22 @@ def open_worklist_form(event):
 ##############################################################################
 user_form = create_user_form()
 worklist_form = create_worklist_form(current_user.get("id", 1))
-# list_worklist = display_worklist
 
-worklist_select = display_worklist(current_user.get("id"))
-# worklist_select[1].on_click(worklist_selected)
-worklist_select.param.watch(fn=worklist_selected, parameter_names="value")
+# Initialize worklist select with current user
+try:
+    worklist_select = display_worklist(current_user.get("id"))
+    if worklist_select is None:
+        print("Warning: worklist_select is None")  # Debug logging
+        worklist_select = pn.widgets.Select(name="Select Worklist", options=[])
+    worklist_select.param.watch(fn=worklist_selected, parameter_names="value")
+except Exception as e:
+    print(f"Error initializing worklist: {e}")  # Debug logging
+    worklist_select = pn.widgets.Select(name="Select Worklist", options=[])
+
+# Initialize orders table with empty or default view
+orders_table_placeholder = pn.Row()
+if worklist_select.value is not None:
+    orders_table_placeholder.append(display_orders(worklist_select.value[0]))
 
 # Setup template
 template = pn.template.MaterialTemplate(
@@ -127,8 +144,6 @@ template.sidebar.append(btn_new_worklist)
 # MAIN
 ##############################################################################
 # General content
-
-orders_table_placeholder = pn.Row(display_orders(worklist_select.value))
 
 btn_mark_as_completed = pn.widgets.Button(
     name="Mark as completed",

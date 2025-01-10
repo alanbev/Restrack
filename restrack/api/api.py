@@ -1,11 +1,13 @@
 import os
 from contextlib import asynccontextmanager
 from typing import List
+import json
+import logging
 
-# from restrack.models.cdm import ORDER
 import pyodbc
-from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Engine
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import create_engine, text
 from sqlmodel import Session, SQLModel, and_, create_engine, select
 
 from restrack.models.worklist import (
@@ -17,61 +19,65 @@ from restrack.models.worklist import (
     OrderResponse,
 )
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 DB_RESTRACK = os.getenv("DB_RESTRACK", "sqlite:///restrack.db")
 DB_OMOP = os.getenv("DB_CDM")
 
-engine_app_db: Engine = create_engine(url=DB_RESTRACK)
-
-# ToDo: (VC) I haven't been able to find a way of connecting to two different databases
-# at the same time
-
-# engine_cdm: Engine = create_engine(url=DB_OMOP)
-# ORDER.__table__.create(engine_cdm, checkfirst=True)
-
+local_engine = create_engine(DB_RESTRACK)
+remote_engine = create_engine(DB_OMOP)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Context manager for the FastAPI application lifespan.
     Initializes the database and disposes of the engine on shutdown.
-    Args:
-        app (FastAPI): The FastAPI application instance.
     """
     try:
-        # Create database and table if not exists
-        SQLModel.metadata.create_all(engine_app_db)
+        SQLModel.metadata.create_all(local_engine)
     except Exception as e:
-        print(e)
+        print(f"Database initialization error: {e}")
     finally:
         yield
-    # Clean up connection
-    engine_app_db.dispose()
+    local_engine.dispose()
+    remote_engine.dispose()
 
+app = FastAPI(lifespan=lifespan)
 
-app = FastAPI(
-    lifespan=lifespan,
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+def verify_password(username: str, password: str) -> bool:
+    try:
+        with open("data/users.json", "r") as f:
+            users = json.load(f)
+            return users.get(username) == password
+    except:
+        return False
+
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not verify_password(form_data.username, form_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"access_token": form_data.username, "token_type": "bearer"}
 
 def get_app_db_session():
     """
     Dependency that provides a database session to application database.
-    Yields:
-        Session: A SQLModel session connected to the database.
     """
-    with Session(engine_app_db) as session:
+    with Session(local_engine) as session:
         yield session
 
-
-def get_cdm_session():
+def get_remote_db_session():
     """
     Dependency that provides a database session to the OMOP database.
-    Yields:
-        Session: A SQLModel session connected to the database.
     """
-    with Session(engine_app_db) as session:
+    with Session(remote_engine) as session:
         yield session
-
 
 @app.post("/users/", response_model=UserSecure)
 def create_user(user: User, session: Session = Depends(get_app_db_session)):
@@ -179,16 +185,22 @@ def create_worklist(worklist: WorkList, session: Session = Depends(get_app_db_se
     Create a new worklist in the database.
     Args:
         worklist (WorkList): The worklist data to be created.
-        session (Session, optional): The database session dependency. Defaults to Depends(get_session).
+        session (Session, optional): The database session dependency.
     Returns:
         WorkList: The created worklist.
     """
-    print(worklist.model_dump())
-    # worklist = WorkList.model_validate(worklist)
-    session.add(worklist)
-    session.commit()
-    session.refresh(worklist)
-    return worklist
+    try:
+        print(worklist.model_dump())
+        session.add(worklist)
+        session.commit()
+        session.refresh(worklist)
+        return worklist
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating worklist: {str(e)}"
+        )
 
 
 @app.get("/worklists/{worklist_id}", response_model=WorkList)
@@ -256,73 +268,96 @@ def delete_worklist(worklist_id: int, session: Session = Depends(get_app_db_sess
     return worklist
 
 
-@app.get("/user_worklists/{user_id}", response_model=List[WorkList])
+@app.get("/worklists/user/{user_id}", response_model=List[WorkList])
 def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_session)):
     """
     Retrieve worklists associated with a specific user.
-    Args:
-        user_id (int): The ID of the user whose worklists are to be retrieved.
-        session (Session, optional): The database session dependency. Defaults to Depends(get_session).
-    Returns:
-        List[WorkList]: A list of worklists associated with the user.
-    Raises:
-        HTTPException: If no worklists are found for the user, a 404 error is raised with the message "WorkList not found".
     """
-    statement = select(WorkList).where(
-        and_(UserWorkList.worklist_id == WorkList.id, UserWorkList.user_id == user_id)
-    )
-
-    worklists = session.exec(statement).fetchall()
-
-    if not worklists:
-        raise HTTPException(status_code=404, detail="WorkList not found")
-    return worklists
+    try:
+        logger.debug(f"Fetching worklists for user {user_id}")
+        
+        # First verify the user exists
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get worklists using a join operation
+        statement = (
+            select(WorkList)
+            .join(UserWorkList, UserWorkList.worklist_id == WorkList.id)
+            .where(UserWorkList.user_id == user_id)
+        )
+        
+        worklists = session.exec(statement).all()
+        logger.debug(f"Found {len(worklists)} worklists for user {user_id}")
+        
+        return worklists
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching worklists for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error while fetching worklists: {str(e)}"
+        )
 
 
 @app.get(path="/worklist_orders/{worklist_id}", response_model=List[OrderResponse])
-def get_worklist_orders(
-    worklist_id: int, session: Session = Depends(get_app_db_session)
-):
+def get_worklist_orders(worklist_id: int, ):
     """
     Fetches orders associated with a specific worklist.
-    This endpoint retrieves the orders linked to a given worklist ID. It first queries the local database to get the order IDs associated with the worklist. If no order IDs are found, it returns None. Otherwise, it connects to an external database using pyodbc to fetch detailed order information.
-    Args:
-        worklist_id (int): The ID of the worklist for which orders are to be fetched.
-        session (Session): The database session dependency.
-    Returns:
-        List[Order]: A list of Order objects containing detailed information about each order.
     """
+    with Session(local_engine) as local_session:
+        try:
+            statement = select(OrderWorkList.order_id).where(
+                OrderWorkList.worklist_id == worklist_id
+            )
 
-    statement = select(OrderWorkList.order_id).where(
-        OrderWorkList.worklist_id == worklist_id
-    )
+            order_ids = local_session.exec(statement).fetchall()
+        except Exception as e:
+            logger.error(f"Error fetching orders: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error: {str(e)}"
+            )
+            if not order_ids:
+                return []
 
-    order_ids = session.exec(statement).fetchall()
+            # Convert tuple of order IDs to flat list
+            order_ids = [str(id[0]) for id in order_ids]
+        try:     
+            with Session(remote_engine) as remote_session:
+                # Build the SQL IN clause dynamically
+                o = ",".join(str(i) for i in order_ids)
+                sql = text(f"""
+                    select
+                        sfo.patient_id,
+                        sfo.order_id,
+                        sfo.proc_name,
+                        sfo.order_datetime,
+                        sfo.in_progress,
+                        sfo.partial,
+                        sfo.complete
+                    from promptly.alan.src_flex__orders sfo
+                    where sfo.order_id in ({o})
+                    and sfo.cancelled is null
+                """)
+                
+                # Execute with order_ids as separate parameters
+                result = remote_session.exec(sql)
+                print("result",result)
+                columns = result.keys()
+                results = []
+                for row in result:
+                    r = dict(zip(columns, row))
+                    results.append(OrderResponse(**r))
 
-    if not order_ids:
-        return
-
-    with pyodbc.connect(DB_OMOP) as cnxn:
-        o = ",".join(str(i) for i in order_ids)
-        sql = f"""
-            select
-                sfo.patient_id,
-                sfo.order_id,
-                sfo.proc_name,
-                sfo.order_datetime,
-                sfo.in_progress,
-                sfo.partial,
-                sfo.complete
-            from promptly.alan.src_flex__orders sfo
-            where sfo.order_id in ({o})
-            and sfo.cancelled is null
-            """
-
-        cursor = cnxn.execute(sql)
-        columns = [c[0] for c in cursor.description]
-        results = []
-        for row in cursor.fetchall():
-            r = dict(zip(columns, row))
-            results.append(OrderResponse(**r))
-
-        return results
+                return results
+                
+        except Exception as e:
+            logger.error(f"Error fetching orders: {str(e)}")
+            raise HTTPException(
+                status_code=501,
+                detail=f"Internal server error: {str(e)}"
+            )

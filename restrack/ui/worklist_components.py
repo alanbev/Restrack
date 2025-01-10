@@ -15,6 +15,7 @@ Usage:
 
 import panel as pn
 import requests
+import json
 from restrack.config import API_URL
 
 
@@ -34,16 +35,21 @@ def create_worklist_form(user_id: int):
             return
         btn_create.loading = True
         try:
-            data = dict(
-                name=name.value, description=description.value, created_by=user_id
+            data = {
+                "name": name.value,
+                "description": description.value,
+                "created_by": user_id
+            }
+            headers = {"Content-Type": "application/json"}
+            r = requests.post(
+                f"{API_URL}/worklists/",
+                data=json.dumps(data),
+                headers=headers
             )
-            print(data.model_dump_json())
-            r = requests.post(API_URL + "/worklists/", data=data.model_dump_json())
-            if r.status_code != 200:
-                raise requests.exceptions.HTTPError(r.status_code, request=r.request)
-            print(r.json())
+            r.raise_for_status()
+            print(f"Worklist created: {r.json()}")
         except Exception as e:
-            raise e
+            print(f"Error creating worklist: {str(e)}")
         finally:
             clear(event)
             btn_create.loading = False
@@ -66,35 +72,26 @@ def create_worklist_form(user_id: int):
     return form
 
 
-def display_worklist(user_id: int):
-    """
-    Displays the worklists associated with a specific user.
-
-    Args:
-        user_id (int): The ID of the user whose worklists are to be displayed.
-
-    Returns:
-        pn.Row: A Panel Row containing the worklist selection widget and a button.
-    """
-    # Get worklists for user
-    if not user_id:
-        return
-
-    r = requests.get(f"{API_URL}/user_worklists/{user_id}")
-    items = r.json()
-
-    options = {i["name"]: i["id"] for i in items}
-
-    # s = pn.widgets.Select(name="Worklists", options=options)
-    # b = pn.widgets.Button(name=">>", button_type="primary")
-
-    tg = pn.widgets.ToggleGroup(
-        widget_type="button",
-        behavior="radio",
-        options=options,
-        # button_type="primary",
-        orientation="vertical",
-        sizing_mode="scale_width",
-    )
-
-    return tg
+def display_worklist(user_id):
+    try:
+        # Use proper URL path joining
+        url = f"{API_URL}/worklists/user/{user_id}"
+        print(f"Fetching worklists from: {url}")  # Debug logging
+        
+        r = requests.get(url)
+        r.raise_for_status()
+        worklists = r.json()
+        
+        options = [(wl['id'], wl['name']) for wl in worklists]
+        return pn.widgets.Select(
+            name='Select Worklist',
+            options=options,
+            width=200
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching worklists: {e}")
+        return pn.widgets.Select(
+            name='Select Worklist',
+            options=[],
+            width=200
+        )
