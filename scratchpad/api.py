@@ -7,7 +7,8 @@ import logging
 import pyodbc
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlmodel import Session, SQLModel, and_, create_engine, select
+#from sqlalchemy import create_engine, text
+from sqlmodel import Session, SQLModel, and_, create_engine, select, text
 
 from restrack.models.worklist import (
     OrderWorkList,
@@ -17,13 +18,12 @@ from restrack.models.worklist import (
     WorkList,
     OrderResponse,
 )
-from restrack.models.cdm import ORDER
- 
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 DB_RESTRACK = os.getenv("DB_RESTRACK", "sqlite:///restrack.db")
-DB_OMOP = os.getenv("DB_CDM")
+DB_OMOP = "mssql+pyodbc://LTHDATASCIENCE?driver=ODBC+Driver+17+For+SQL+Server&Trusted_Connection=Yes&Database=promptly"
 
 local_engine = create_engine(DB_RESTRACK)
 remote_engine = create_engine(DB_OMOP)
@@ -194,6 +194,16 @@ def create_worklist(worklist: WorkList, session: Session = Depends(get_app_db_se
         session.add(worklist)
         session.commit()
         session.refresh(worklist)
+
+        # Create user-worklist association with ADMIN role
+        # user_worklist = UserWorkList(
+        #     user_id=worklist.created_by,
+        #     worklist_id=worklist.id,
+        #     role=WorkListRole.ADMIN
+        # )
+        #session.add(user_worklist)
+        session.commit()
+
         return worklist
     except Exception as e:
         session.rollback()
@@ -303,35 +313,54 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
         )
 
 
-
-@app.get(path="/worklist_orders/{worklist_id}", response_model=List[ORDER])
-def get_worklist_orders(worklist_id: int, local_session: Session = Depends(get_app_db_session), remote_session: Session= Depends(get_remote_db_session)):
+@app.get(path="/worklist_orders/{worklist_id}", response_model=List[OrderResponse])
+def get_worklist_orders(worklist_id: int, session: Session = Depends(get_app_db_session)):
     """
     Fetches orders associated with a specific worklist.
     """
-    with local_session as local:
+    try:
         statement = select(OrderWorkList.order_id).where(
             OrderWorkList.worklist_id == worklist_id
         )
 
-        order_ids = local.exec(statement).fetchall()
+        order_ids = session.exec(statement).fetchall()
 
         if not order_ids:
-             return []
+            return []
 
-        try:
-            with remote_session as remote:
-                statement = select(ORDER).where(ORDER.order_id.in_(order_ids), ORDER.cancelled == None)
-                result = remote.exec(statement)
-                results = []
-                for row in result:
-                        results.append(row)
+        # Convert tuple of order IDs to flat list
+        order_ids = [str(id[0]) for id in order_ids]
         
-                return results
-    
-        except Exception as e:
-            logger.error(f"Error fetching orders: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Internal server error: {str(e)}"
-            )
+        with Session(remote_engine) as remote_session:
+            # Build the SQL IN clause dynamically
+            o = ",".join(str(i) for i in order_ids)
+            sql = text(f"""
+                select
+                    sfo.patient_id,
+                    sfo.order_id,
+                    sfo.proc_name,
+                    sfo.order_datetime,
+                    sfo.in_progress,
+                    sfo.partial,
+                    sfo.complete
+                from promptly.alan.src_flex__orders sfo
+                where sfo.order_id in ({o})
+                and sfo.cancelled is null
+            """)
+            
+            # Execute with order_ids as separate parameters
+            result = remote_session.exec(sql, order_ids)
+            columns = result.keys()
+            results = []
+            for row in result:
+                r = dict(zip(columns, row))
+                results.append(OrderResponse(**r))
+
+            return results
+            
+    except Exception as e:
+        logger.error(f"Error fetching orders: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )

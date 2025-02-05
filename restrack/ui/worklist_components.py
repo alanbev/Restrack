@@ -72,7 +72,7 @@ def create_worklist_form(user_id: int):
     return form
 
 
-def display_worklist(user_id):
+def display_worklist(user_id: int):
     try:
         # Use proper URL path joining
         url = f"{API_URL}/worklists/user/{user_id}"

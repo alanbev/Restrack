@@ -563,28 +563,28 @@ class CONCEPT(SQLModel, table=True):
 #     invalid_reason: Optional[str] = Field(max_length=1)
 
 
-# class ORDER(SQLModel, table=True):
-#     __table_args__ = {"schema": "alan"}
-#     __tablename__ = "src_flex__orders"
-#     order_id: int = Field(default=None, primary_key=True)
-#     visit_id: int
-#     event_id: int
-#     patient_id: Optional[int]
-#     proc_id: int
-#     proc_name: Optional[str] = Field(max_length=175)
-#     order_entered_by: Optional[int]
-#     order_requested_by: Optional[int]
-#     event_event_id: Optional[int]
-#     current_status: Optional[int]
-#     order_datetime: Optional[datetime]
-#     event_datetime: Optional[datetime]
-#     cancelled: Optional[datetime]
-#     in_progress: Optional[datetime]
-#     partial: Optional[datetime]
-#     complete: Optional[datetime]
-#     supplemental: Optional[datetime]
-#     last_edit_time: Optional[datetime]
-#     updated_at: Optional[datetime]
+class ORDER(SQLModel, table=True):
+    __table_args__ = {"schema": "alan"}
+    __tablename__ = "src_flex__orders"
+    order_id: int = Field(default=None, primary_key=True)
+    visit_id: int
+    event_id: int
+    patient_id: Optional[int]
+    proc_id: int
+    proc_name: Optional[str] = Field(max_length=175)
+    order_entered_by: Optional[int]
+    order_requested_by: Optional[int]
+    event_event_id: Optional[int]
+    current_status: Optional[int]
+    order_datetime: Optional[datetime]
+    event_datetime: Optional[datetime]
+    cancelled: Optional[datetime]
+    in_progress: Optional[datetime]
+    partial: Optional[datetime]
+    complete: Optional[datetime]
+    supplemental: Optional[datetime]
+    last_edit_time: Optional[datetime]
+    updated_at: Optional[datetime]
 
 
 class Order(BaseModel):
