@@ -283,6 +283,7 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
     """
     Retrieve worklists associated with a specific user.
     """
+    print("user id sent to worklists/user",user_id)
     try:
         logger.debug(f"Fetching worklists for user {user_id}")
         

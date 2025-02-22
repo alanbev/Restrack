@@ -20,7 +20,7 @@ Usage:
 """
 
 import panel as pn
-from restrack.ui.user_components import create_user_form, logout
+from restrack.ui.user_components import create_user_form
 from restrack.ui.worklist_components import create_worklist_form, display_worklist
 from restrack.ui.order_components import display_orders
 import requests

@@ -7,7 +7,8 @@ import logging
 import pyodbc
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlmodel import Session, SQLModel, and_, create_engine, select
+#from sqlalchemy import create_engine, text
+from sqlmodel import Session, SQLModel, and_, create_engine, select, text
 
 from restrack.models.worklist import (
     OrderWorkList,
@@ -17,13 +18,14 @@ from restrack.models.worklist import (
     WorkList,
     OrderResponse,
 )
+
 from restrack.models.cdm import ORDER
- 
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 DB_RESTRACK = os.getenv("DB_RESTRACK", "sqlite:///restrack.db")
-DB_OMOP = os.getenv("DB_CDM")
+DB_OMOP = "mssql+pyodbc://LTHDATASCIENCE?driver=ODBC+Driver+17+For+SQL+Server&Trusted_Connection=Yes&Database=promptly"
 
 local_engine = create_engine(DB_RESTRACK)
 remote_engine = create_engine(DB_OMOP)
@@ -43,9 +45,10 @@ async def lifespan(app: FastAPI):
     local_engine.dispose()
     remote_engine.dispose()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 def verify_password(username: str, password: str) -> bool:
     try:
@@ -79,8 +82,10 @@ def get_remote_db_session():
     with Session(remote_engine) as session:
         yield session
 
+
+
 @app.post("/users/", response_model=UserSecure)
-def create_user(user: User, session: Session = Depends(get_app_db_session)):
+def create_user(user: User, local_session: Session = Depends(get_app_db_session)):
     """
     Create a new user in the database.
     Args:
@@ -89,14 +94,15 @@ def create_user(user: User, session: Session = Depends(get_app_db_session)):
     Returns:
         User: The created user.
     """
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
+    with local_session as session:
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
 
 
 @app.get("/users/{user_id}", response_model=UserSecure)
-def read_user(user_id: int, session: Session = Depends(get_app_db_session)):
+def read_user(user_id: int, local_session: Session = Depends(get_app_db_session)):
     """
     Retrieve a user by ID.
     Args:
@@ -107,14 +113,16 @@ def read_user(user_id: int, session: Session = Depends(get_app_db_session)):
     Raises:
         HTTPException: If the user is not found, a 404 error is raised with the message "User not found".
     """
-    user = session.get(User, user_id)
+    
+    user = local_session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
     return user
 
 
 @app.get("/users/username/{username}", response_model=UserSecure)
-def get_user_by_username(username: str, session: Session = Depends(get_app_db_session)):
+def get_user_by_username(username: str, local_session: Session = Depends(get_app_db_session)):
     """
     Retrieve a user by username.
     Args:
@@ -125,17 +133,16 @@ def get_user_by_username(username: str, session: Session = Depends(get_app_db_se
     Raises:
         HTTPException: If the user is not found, a 404 error is raised with the message "User not found".
     """
-    statement = select(User).where(User.username == username)
-    user = session.exec(statement).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    with local_session as session:   
+        statement = select(User).where(User.username == username)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
 
 
 @app.put("/users/{user_id}", response_model=User)
-def update_user(
-    user_id: int, user: User, session: Session = Depends(get_app_db_session)
-):
+def update_user(user_id: int, user: User, local_session: Session = Depends(get_app_db_session)):
     """
     Update an existing user by ID.
     Args:
@@ -147,20 +154,21 @@ def update_user(
     Raises:
         HTTPException: If the user is not found, a 404 error is raised with the message "User not found".
     """
-    db_user = session.get(User, user_id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user_data = user.dict(exclude_unset=True)
-    for key, value in user_data.items():
-        setattr(db_user, key, value)
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    return db_user
+    with local_session as session:   
+        db_user = session.get(User, user_id)
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user_data = user.dict(exclude_unset=True)
+        for key, value in user_data.items():
+            setattr(db_user, key, value)
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        return db_user
 
 
 @app.delete("/users/{user_id}", response_model=User)
-def delete_user(user_id: int, session: Session = Depends(get_app_db_session)):
+def delete_user(user_id: int, local_session: Session = Depends(get_app_db_session)):
     """
     Delete a user by ID.
     Args:
@@ -171,16 +179,17 @@ def delete_user(user_id: int, session: Session = Depends(get_app_db_session)):
     Raises:
         HTTPException: If the user is not found, a 404 error is raised with the message "User not found".
     """
-    user = session.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    session.delete(user)
-    session.commit()
-    return user
+    with local_session as session:
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        session.delete(user)
+        session.commit()
+        return user
 
 
 @app.post("/worklists/", response_model=WorkList)
-def create_worklist(worklist: WorkList, session: Session = Depends(get_app_db_session)):
+def create_worklist(worklist: WorkList, local_session: Session = Depends(get_app_db_session)):
     """
     Create a new worklist in the database.
     Args:
@@ -189,22 +198,33 @@ def create_worklist(worklist: WorkList, session: Session = Depends(get_app_db_se
     Returns:
         WorkList: The created worklist.
     """
-    try:
-        print(worklist.model_dump())
-        session.add(worklist)
-        session.commit()
-        session.refresh(worklist)
-        return worklist
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error creating worklist: {str(e)}"
-        )
+    with local_session as session:
+        try:
+            print(worklist.model_dump())
+            session.add(worklist)
+            session.commit()
+            session.refresh(worklist)
+
+            # Create user-worklist association with ADMIN role
+            # user_worklist = UserWorkList(
+            #     user_id=worklist.created_by,
+            #     worklist_id=worklist.id,
+            #     role=WorkListRole.ADMIN
+            # )
+            #session.add(user_worklist)
+            session.commit()
+
+            return worklist
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error creating worklist: {str(e)}"
+            )
 
 
 @app.get("/worklists/{worklist_id}", response_model=WorkList)
-def read_worklist(worklist_id: int, session: Session = Depends(get_app_db_session)):
+def read_worklist(worklist_id: int, local_session: Session = Depends(get_app_db_session)):
     """
     Retrieve a worklist by ID.
     Args:
@@ -215,16 +235,18 @@ def read_worklist(worklist_id: int, session: Session = Depends(get_app_db_sessio
     Raises:
         HTTPException: If the worklist is not found, a 404 error is raised with the message "WorkList not found".
     """
-    worklist = session.get(WorkList, worklist_id)
-    if not worklist:
-        raise HTTPException(status_code=404, detail="WorkList not found")
-    return worklist
+    try:
+        with local_session as session:
+            worklist = session.get(WorkList, worklist_id)
+        return worklist
+    except:
+            raise HTTPException(status_code=404, detail="WorkList not found")
+       
 
 
 @app.put("/worklists/{worklist_id}", response_model=WorkList)
-def update_worklist(
-    worklist_id: int, worklist: WorkList, session: Session = Depends(get_app_db_session)
-):
+def update_worklist(worklist_id: int, worklist: WorkList, local_session: Session = Depends(get_app_db_session)):
+
     """
     Update an existing worklist by ID.
     Args:
@@ -236,20 +258,21 @@ def update_worklist(
     Raises:
         HTTPException: If the worklist is not found, a 404 error is raised with the message "WorkList not found".
     """
-    db_worklist = session.get(WorkList, worklist_id)
-    if not db_worklist:
-        raise HTTPException(status_code=404, detail="WorkList not found")
-    worklist_data = worklist.dict(exclude_unset=True)
-    for key, value in worklist_data.items():
-        setattr(db_worklist, key, value)
-    session.add(db_worklist)
-    session.commit()
-    session.refresh(db_worklist)
-    return db_worklist
+    with local_session as session:
+        db_worklist = session.get(WorkList, worklist_id)
+        if not db_worklist:
+            raise HTTPException(status_code=404, detail="WorkList not found")
+        worklist_data = worklist.dict(exclude_unset=True)
+        for key, value in worklist_data.items():
+            setattr(db_worklist, key, value)
+        session.add(db_worklist)
+        session.commit()
+        session.refresh(db_worklist)
+        return db_worklist
 
 
 @app.delete("/worklists/{worklist_id}", response_model=WorkList)
-def delete_worklist(worklist_id: int, session: Session = Depends(get_app_db_session)):
+def delete_worklist(worklist_id: int, local_session: Session = Depends(get_app_db_session)):
     """
     Delete a worklist by ID.
     Args:
@@ -260,16 +283,18 @@ def delete_worklist(worklist_id: int, session: Session = Depends(get_app_db_sess
     Raises:
         HTTPException: If the worklist is not found, a 404 error is raised with the message "WorkList not found".
     """
-    worklist = session.get(WorkList, worklist_id)
-    if not worklist:
-        raise HTTPException(status_code=404, detail="WorkList not found")
-    session.delete(worklist)
-    session.commit()
-    return worklist
+    with local_session as session:
+        worklist = session.get(WorkList, worklist_id)
+        if not worklist:
+            raise HTTPException(status_code=404, detail="WorkList not found")
+        session.delete(worklist)
+        session.commit()
+        return worklist
 
 
 @app.get("/worklists/user/{user_id}", response_model=List[WorkList])
-def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_session)):
+def get_user_worklists(user_id: int, local_session: Session = Depends(get_app_db_session)):
+    print(user_id, type(user_id))
     """
     Retrieve worklists associated with a specific user.
     """
@@ -277,7 +302,7 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
         logger.debug(f"Fetching worklists for user {user_id}")
         
         # First verify the user exists
-        user = session.get(User, user_id)
+        user = local_session.get(User, user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -288,7 +313,7 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
             .where(UserWorkList.user_id == user_id)
         )
         
-        worklists = session.exec(statement).all()
+        worklists = local_session.exec(statement).all()
         logger.debug(f"Found {len(worklists)} worklists for user {user_id}")
         
         return worklists
@@ -303,9 +328,8 @@ def get_user_worklists(user_id: int, session: Session = Depends(get_app_db_sessi
         )
 
 
-
 @app.get(path="/worklist_orders/{worklist_id}", response_model=List[ORDER])
-def get_worklist_orders(worklist_id: int, local_session: Session = Depends(get_app_db_session), remote_session: Session= Depends(get_remote_db_session)):
+def get_worklist_orders(worklist_id: int, local_session: Session = Depends(get_app_db_session), remote_session: Session = Depends(get_remote_db_session)):
     """
     Fetches orders associated with a specific worklist.
     """

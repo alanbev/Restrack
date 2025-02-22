@@ -68,6 +68,3 @@ def create_user_form():
 
     return user_form
 
-def logout():
-    """logs out user"""
-    

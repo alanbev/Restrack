@@ -75,7 +75,7 @@ def create_worklist_form(user_id: int):
 def display_worklist(user_id: int):
     try:
         # Use proper URL path joining
-        url = f"{API_URL}/worklists/user/{user_id}"
+        url = f"{API_URL}/worklists/user/{1}"#should be user_id: changed to 1 for debugging
         print(f"Fetching worklists from: {url}")  # Debug logging
         
         r = requests.get(url)
