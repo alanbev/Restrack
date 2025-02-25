@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+# IDE settings
+.idea/
+
+# Exploratory work
+scrapbooks/
+data/
+*.db
+.env
