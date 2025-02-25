@@ -338,24 +338,48 @@ def get_worklist_orders(worklist_id: int, local_session: Session = Depends(get_a
             OrderWorkList.worklist_id == worklist_id
         )
 
-        order_ids = local.exec(statement).fetchall()
+    order_ids = local.exec(statement).fetchall()
 
-        if not order_ids:
-             return []
+    if not order_ids:
+        return []
 
-        try:
-            with remote_session as remote:
-                statement = select(ORDER).where(ORDER.order_id.in_(order_ids), ORDER.cancelled == None)
-                result = remote.exec(statement)
-                results = []
-                for row in result:
-                        results.append(row)
-        
-                return results
+    try:
+        with remote_session as remote:
+            statement = select(ORDER).where(ORDER.order_id.in_(order_ids), ORDER.cancelled == None)
+            result = remote.exec(statement)
+            results = []
+            for row in result:
+                results.append(row)
     
-        except Exception as e:
-            logger.error(f"Error fetching orders: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Internal server error: {str(e)}"
-            )
+            return results
+
+    except Exception as e:
+        logger.error(f"Error fetching orders: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(path="/orders_for_patient/{patient_id}", response_model=List[ORDER])
+def get_worklist_orders(patient_id: int,  remote_session: Session = Depends(get_remote_db_session)):
+    """
+    Fetches orders all orders for a specific patient
+    """
+   
+    try:
+        with remote_session as remote:
+            statement = select(ORDER).where(ORDER.patient_id == patient_id, ORDER.cancelled == None)
+            result = remote.exec(statement)
+            results = []
+            for row in result:
+                results.append(row)
+    
+            return results
+
+    except Exception as e:
+        logger.error(f"Error fetching orders: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )

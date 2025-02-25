@@ -23,6 +23,7 @@ import panel as pn
 from restrack.ui.user_components import create_user_form
 from restrack.ui.worklist_components import create_worklist_form, display_worklist
 from restrack.ui.order_components import display_orders
+from restrack.ui.orders_for_patient_form import orders_for_patient_form
 import requests
 from dotenv import find_dotenv, load_dotenv
 from restrack.config import API_URL
@@ -32,7 +33,7 @@ pn.extension("tabulator")
 
 load_dotenv(find_dotenv())
 
-
+display = "worklists"
 # Get user_id of logged in user
 def get_user(username):
     try:
@@ -64,8 +65,6 @@ def worklist_selected(event: Event):
     worklist_id = event.new[0]
 
     try:
-        print ("Woeklisr ID",worklist_id)
-      
         tbl = display_orders(worklist_id)
         orders_table_placeholder.clear()
         orders_table_placeholder.append(tbl)
@@ -79,6 +78,20 @@ def open_worklist_form(event):
     template.modal.clear()
     template.modal.append(worklist_form)
     template.open_modal()
+
+
+
+
+def update_orders_display(new_content):
+    if isinstance(new_content, (str, Exception)):
+        # Handle error messages or strings
+        orders_table_placeholder.clear()
+        orders_table_placeholder.append(pn.pane.Markdown(str(new_content)))
+    else:
+        # Handle table content
+        orders_table_placeholder.clear()
+        orders_table_placeholder.append(new_content)
+     
 
 
 ##############################################################################
@@ -140,6 +153,13 @@ template.sidebar.append("## Worklists")
 
 template.sidebar.append(worklist_select)
 
+
+template.sidebar.append(pn.layout.Divider())
+template.sidebar.append("Show available orders for a patient")
+template.sidebar.append(orders_for_patient_form(
+    update_callback=update_orders_display  
+))
+
 btn_new_worklist = pn.widgets.Button(
     name="New work list",
     button_type="primary",
@@ -171,8 +191,15 @@ btn_remove_from_worklist = pn.widgets.Button(
     icon="trash",
 )
 
+btn_add_to_worklist=pn.widgets.Button(
+    name="Add to current worklist",
+    button_type="success",
+    description="Click to add selection to current worklist",
+    icon="check",
+)
+
 main_content = pn.Column(
-    orders_table_placeholder, pn.Row(btn_mark_as_completed, btn_remove_from_worklist)
+    orders_table_placeholder, pn.Row(btn_mark_as_completed, btn_remove_from_worklist,btn_add_to_worklist)
 )
 
 tabs = pn.Tabs(("Main", main_content), dynamic=True)
