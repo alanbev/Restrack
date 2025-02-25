@@ -31,6 +31,7 @@ from param.parameterized import Event
 
 pn.extension("tabulator")
 
+
 load_dotenv(find_dotenv())
 
 display = "worklists"
@@ -63,6 +64,7 @@ def worklist_selected(event: Event):
     if event.new is None:
         return
     worklist_id = event.new[0]
+    pn.state.cache["Worklist_id"]=worklist_id
 
     try:
         tbl = display_orders(worklist_id)
@@ -91,8 +93,26 @@ def update_orders_display(new_content):
         # Handle table content
         orders_table_placeholder.clear()
         orders_table_placeholder.append(new_content)
-     
+        pn.state.cache["current_table"]=new_content
 
+def add_to_worklist(event):  # Add event parameter
+    if "current_table" in pn.state.cache and "Worklist_id" in pn.state.cache:
+        selection = pn.state.cache["current_table"].selected_dataframe
+        order_ids = selection["order_id"].tolist()
+        worklist_id = pn.state.cache["Worklist_id"]
+        orders_to_add = {
+            "worklist_id": worklist_id,
+            "order_ids": order_ids
+        }
+        print(orders_to_add)
+        r = requests.put(f"{API_URL}/add_to orders{orders_to_add}")
+        if r.status_code == 200:
+            # Refresh the display
+            tbl = display_orders(worklist_id)
+            orders_table_placeholder.clear()
+            orders_table_placeholder.append(tbl)
+            return True
+    return False
 
 ##############################################################################
 # Get individual components
@@ -197,6 +217,7 @@ btn_add_to_worklist=pn.widgets.Button(
     description="Click to add selection to current worklist",
     icon="check",
 )
+btn_add_to_worklist.on_click(add_to_worklist)  # Remove the parentheses
 
 main_content = pn.Column(
     orders_table_placeholder, pn.Row(btn_mark_as_completed, btn_remove_from_worklist,btn_add_to_worklist)

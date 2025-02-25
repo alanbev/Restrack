@@ -243,7 +243,7 @@ def read_worklist(worklist_id: int, local_session: Session = Depends(get_app_db_
             raise HTTPException(status_code=404, detail="WorkList not found")
        
 
-
+#Not sure what this endpoint is supposed to do!!.  Seems to convert to dict and save back unchanged -?AI hallucination. Need to re-write
 @app.put("/worklists/{worklist_id}", response_model=WorkList)
 def update_worklist(worklist_id: int, worklist: WorkList, local_session: Session = Depends(get_app_db_session)):
 
@@ -294,7 +294,7 @@ def delete_worklist(worklist_id: int, local_session: Session = Depends(get_app_d
 
 @app.get("/worklists/user/{user_id}", response_model=List[WorkList])
 def get_user_worklists(user_id: int, local_session: Session = Depends(get_app_db_session)):
-    print(user_id, type(user_id))
+ 
     """
     Retrieve worklists associated with a specific user.
     """
@@ -383,3 +383,20 @@ def get_worklist_orders(patient_id: int,  remote_session: Session = Depends(get_
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
+
+
+#under development
+
+
+@app.put(path="/add_to_worklist/{orders_to_add}", response_model=bool)
+async def update_worklist(orders_to_add, local_session: Session = Depends(get_app_db_session)):
+    worklist_id = orders_to_add.worklist_id
+    order_ids = orders_to_add.order_ids
+
+    try:
+        for order_id in order_ids:
+            local_session.add(OrderWorkList(worklist_id=worklist_id, order_id=order_id))
+        local_session.commit()
+        return True
+    except:
+        return False
