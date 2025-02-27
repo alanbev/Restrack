@@ -31,6 +31,7 @@ def create_worklist_form(user_id: int):
     """
 
     def submit(event):
+        print("submit has run")
         if not event:
             return
         btn_create.loading = True
@@ -48,6 +49,8 @@ def create_worklist_form(user_id: int):
             )
             r.raise_for_status()
             print(f"Worklist created: {r.json()}")
+            display_worklist(user_id)
+
         except Exception as e:
             print(f"Error creating worklist: {str(e)}")
         finally:

@@ -200,9 +200,24 @@ def create_worklist(worklist: WorkList, local_session: Session = Depends(get_app
     with local_session as session:
         try:
             print(worklist.model_dump())
+            # Check for potential duplicates
+            existing_worklist = session.exec(select(WorkList).where(WorkList.name == worklist.name)).first()
+            if existing_worklist:
+                raise HTTPException(status_code=400, detail="WorkList with this name already exists")
+            
+            # Validate the data (example: ensure name is not empty)
+            if not worklist.name:
+                raise HTTPException(status_code=400, detail="WorkList name cannot be empty")
+            print("worked to here")
             session.add(worklist)
+            print("and worked to here",worklist)
             session.commit()
+            worklist_name=worklist.name
             session.refresh(worklist)
+            print("new worklist", worklist)      
+            print("worklist_name", worklist_name)
+            session.add(UserWorkList(user_id=worklist.created_by, worklist_id=worklist.id))
+            session.commit()
 
             # Create user-worklist association with ADMIN role
             # user_worklist = UserWorkList(
@@ -211,16 +226,19 @@ def create_worklist(worklist: WorkList, local_session: Session = Depends(get_app
             #     role=WorkListRole.ADMIN
             # )
             #session.add(user_worklist)
-            session.commit()
+       
 
             return worklist
+        
         except Exception as e:
             session.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Error creating worklist: {str(e)}"
+                
             )
-
+       
+        
 
 @app.get("/worklists/{worklist_id}", response_model=WorkList)
 def read_worklist(worklist_id: int, local_session: Session = Depends(get_app_db_session)):
@@ -268,6 +286,7 @@ def update_worklist(worklist_id: int, worklist: WorkList, local_session: Session
         session.commit()
         session.refresh(db_worklist)
         return db_worklist
+        
 
 
 @app.delete("/worklists/{worklist_id}", response_model=WorkList)
