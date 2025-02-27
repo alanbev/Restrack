@@ -7,7 +7,6 @@ import logging
 import pyodbc
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-#from sqlalchemy import create_engine, text
 from sqlmodel import Session, SQLModel, and_, create_engine, select, text
 
 from restrack.models.worklist import (
@@ -390,12 +389,14 @@ def get_worklist_orders(patient_id: int,  remote_session: Session = Depends(get_
 
 @app.put(path="/add_to_worklist/{orders_to_add}", response_model=bool)
 async def update_worklist(orders_to_add, local_session: Session = Depends(get_app_db_session)):
-    worklist_id = orders_to_add.worklist_id
-    order_ids = orders_to_add.order_ids
-
+  
+    orders_to_add = json.loads(orders_to_add)
+    worklist_id = orders_to_add['worklist_id']
+    order_ids = orders_to_add['order_ids']
+    
     try:
         for order_id in order_ids:
-            local_session.add(OrderWorkList(worklist_id=worklist_id, order_id=order_id))
+            local_session.add(OrderWorkList(order_id=order_id, worklist_id=worklist_id))
         local_session.commit()
         return True
     except:

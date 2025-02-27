@@ -19,6 +19,7 @@ Usage:
     The template is made servable at the end of the script, allowing it to be served as a web application.
 """
 
+import json
 import panel as pn
 from restrack.ui.user_components import create_user_form
 from restrack.ui.worklist_components import create_worklist_form, display_worklist
@@ -104,8 +105,8 @@ def add_to_worklist(event):  # Add event parameter
             "worklist_id": worklist_id,
             "order_ids": order_ids
         }
-        print(orders_to_add)
-        r = requests.put(f"{API_URL}/add_to orders{orders_to_add}")
+        orders_to_add = json.dumps(orders_to_add)
+        r = requests.put(f"{API_URL}/add_to_worklist/{orders_to_add}")
         if r.status_code == 200:
             # Refresh the display
             tbl = display_orders(worklist_id)
