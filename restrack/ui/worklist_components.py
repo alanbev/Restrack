@@ -19,12 +19,13 @@ import json
 from restrack.config import API_URL
 
 
-def create_worklist_form(user_id: int):
+def create_worklist_form(user_id: int, refresh_callback=None):
     """
     Creates a form for creating a new worklist.
 
     Args:
         user_id (int): The ID of the user creating the worklist.
+        refresh_callback (callable, optional): Callback function to refresh worklist display.
 
     Returns:
         pn.WidgetBox: A Panel WidgetBox containing the form elements.
@@ -49,12 +50,13 @@ def create_worklist_form(user_id: int):
             )
             r.raise_for_status()
             print(f"Worklist created: {r.json()}")
-            display_worklist(user_id)
+            if refresh_callback:
+                refresh_callback()
+            clear(event)
 
         except Exception as e:
             print(f"Error creating worklist: {str(e)}")
         finally:
-            clear(event)
             btn_create.loading = False
 
     def clear(event):

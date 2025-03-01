@@ -21,6 +21,7 @@ Usage:
 
 import json
 import panel as pn
+from restrack.ui.remove_order_from_worklist import remove_order_from_worklist
 from restrack.ui.user_components import create_user_form
 from restrack.ui.worklist_components import create_worklist_form, display_worklist
 from restrack.ui.order_components import display_orders
@@ -68,9 +69,9 @@ def worklist_selected(event: Event):
     pn.state.cache["Worklist_id"]=worklist_id
 
     try:
-        tbl = display_orders(worklist_id)
+        pn.state.cache["current_table"] = display_orders(worklist_id)
         orders_table_placeholder.clear()
-        orders_table_placeholder.append(tbl)
+        orders_table_placeholder.append(pn.state.cache["current_table"])
     except Exception as e:
         print(f"Error displaying orders: {e}")  # Debug logging
         orders_table_placeholder.clear()
@@ -96,7 +97,7 @@ def update_orders_display(new_content):
         orders_table_placeholder.append(new_content)
         pn.state.cache["current_table"]=new_content
 
-def add_to_worklist(event):  # Add event parameter
+def add_to_worklist(event): 
     if "current_table" in pn.state.cache and "Worklist_id" in pn.state.cache:
         selection = pn.state.cache["current_table"].selected_dataframe
         order_ids = selection["order_id"].tolist()
@@ -109,38 +110,62 @@ def add_to_worklist(event):  # Add event parameter
         r = requests.put(f"{API_URL}/add_to_worklist/{orders_to_add}")
         if r.status_code == 200:
             # Refresh the display
-            tbl = display_orders(worklist_id)
+            pn.state.cache["current_table"] = display_orders(worklist_id)
             orders_table_placeholder.clear()
-            orders_table_placeholder.append(tbl)
+            orders_table_placeholder.append(pn.state.cache["current_table"])
             return True
     return False
+
+def remove_order_from_worklist_event(event):
+    print("about to call remove order called", pn.state.cache["current_table"])
+    order_removed=remove_order_from_worklist()
+    if order_removed:
+        orders_table_placeholder.clear()
+        orders_table_placeholder.append(pn.state.cache["current_table"])
 
 ##############################################################################
 # Get individual components
 ##############################################################################
 user_form = create_user_form()
-worklist_form = create_worklist_form(current_user.get("id", 1))
 
 # Initialize worklist select with current user
-try:
-    worklist_select = display_worklist(current_user.get("id"))
-    if worklist_select is None:
-        print("Warning: worklist_select is None")  # Debug logging
+def initialise_worklist_select():
+    try:
+        worklist_select = display_worklist(current_user.get("id"))
+        if worklist_select is None:
+            print("Warning: worklist_select is None")  # Debug logging
+            worklist_select = pn.widgets.Select(name="Select Worklist", options=[])
+        worklist_select.param.watch(fn=worklist_selected, parameter_names="value")
+    except Exception as e:
+        print(f"Error initializing worklist: {e}")  # Debug logging
         worklist_select = pn.widgets.Select(name="Select Worklist", options=[])
-    worklist_select.param.watch(fn=worklist_selected, parameter_names="value")
-except Exception as e:
-    print(f"Error initializing worklist: {e}")  # Debug logging
-    worklist_select = pn.widgets.Select(name="Select Worklist", options=[])
+    return worklist_select
+
+def refresh_worklist_select():
+    """Refresh the worklist select component"""
+    global worklist_select
+    new_select = initialise_worklist_select()
+    worklist_select.options = new_select.options
+    template.modal.close()
+
+# Create initial worklist select
+worklist_select = initialise_worklist_select()
+
+# Create worklist form with refresh callback
+worklist_form = create_worklist_form(current_user.get("id", 1), refresh_callback=refresh_worklist_select)
 
 # Initialize orders table with empty or default view
 orders_table_placeholder = pn.Row()
 if worklist_select.value is not None:
-    orders_table_placeholder.append(display_orders(worklist_select.value[0]))
+    pn.state.cache["current_table"]=display_orders(worklist_select.value[0])
+    orders_table_placeholder.append(pn.state.cache["current_table"])
 
 # Setup template
 template = pn.template.MaterialTemplate(
     title="Results Tracking Portal", site="RESTRACK", theme=pn.template.DefaultTheme
 )
+
+
 
 
 ##############################################################################
@@ -211,6 +236,7 @@ btn_remove_from_worklist = pn.widgets.Button(
     description="Click to remove the selected item(s) from the worklist",
     icon="trash",
 )
+btn_remove_from_worklist.on_click(remove_order_from_worklist_event)
 
 btn_add_to_worklist=pn.widgets.Button(
     name="Add to current worklist",
@@ -218,7 +244,7 @@ btn_add_to_worklist=pn.widgets.Button(
     description="Click to add selection to current worklist",
     icon="check",
 )
-btn_add_to_worklist.on_click(add_to_worklist)  # Remove the parentheses
+btn_add_to_worklist.on_click(add_to_worklist)  
 
 main_content = pn.Column(
     orders_table_placeholder, pn.Row(btn_mark_as_completed, btn_remove_from_worklist,btn_add_to_worklist)

@@ -208,25 +208,11 @@ def create_worklist(worklist: WorkList, local_session: Session = Depends(get_app
             # Validate the data (example: ensure name is not empty)
             if not worklist.name:
                 raise HTTPException(status_code=400, detail="WorkList name cannot be empty")
-            print("worked to here")
             session.add(worklist)
-            print("and worked to here",worklist)
             session.commit()
-            worklist_name=worklist.name
             session.refresh(worklist)
-            print("new worklist", worklist)      
-            print("worklist_name", worklist_name)
             session.add(UserWorkList(user_id=worklist.created_by, worklist_id=worklist.id))
             session.commit()
-
-            # Create user-worklist association with ADMIN role
-            # user_worklist = UserWorkList(
-            #     user_id=worklist.created_by,
-            #     worklist_id=worklist.id,
-            #     role=WorkListRole.ADMIN
-            # )
-            #session.add(user_worklist)
-       
 
             return worklist
         
@@ -420,3 +406,33 @@ async def update_worklist(orders_to_add, local_session: Session = Depends(get_ap
         return True
     except:
         return False
+    
+
+
+@app.delete("/remove_order_from_worklist/{orders_for_removal}", response_model=OrderWorkList)
+def delete_worklist(orders_for_removal: str, local_session: Session = Depends(get_app_db_session)):
+    """
+    Delete orders from a worklist.
+    Args:
+        order_for_removal: JSON string containing worklist_id and order_ids
+    Returns:
+        OrderWorkList: The deleted orders.
+    """
+    with local_session as session:
+        orders_for_removal = json.loads(orders_for_removal)
+        statement = select(OrderWorkList).where(
+            and_(
+                OrderWorkList.worklist_id == orders_for_removal["worklist_id"],
+                OrderWorkList.order_id.in_(orders_for_removal["order_ids"])
+            )
+        )
+        orders_to_delete = session.exec(statement).all()
+        
+        if not orders_to_delete:
+            raise HTTPException(status_code=404, detail="Orders not found in worklist")
+            
+        for order in orders_to_delete:
+            session.delete(order)
+        
+        session.commit()
+        return orders_to_delete[0] if orders_to_delete else None
