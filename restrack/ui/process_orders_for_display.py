@@ -1,8 +1,6 @@
 import pandas as pd
 import panel as pn
 
-
-
 def process_orders_for_display(df):       
     df_to_view = df[["order_id",
                     "patient_id",
@@ -13,6 +11,8 @@ def process_orders_for_display(df):
                     "partial",
                     "complete",
                     "supplemental"]]
+    
+    
                     
     df_to_view['order_datetime'] = pd.to_datetime(df_to_view['order_datetime'], format='mixed')
     df_to_view['order_datetime'] = df_to_view['order_datetime'].dt.strftime('%d/%m/%Y')
@@ -25,13 +25,40 @@ def process_orders_for_display(df):
     df_to_view["supplemental"] = pd.to_datetime(df_to_view["supplemental"], format='mixed')
     df_to_view["supplemental"] = df_to_view["supplemental"].dt.strftime('%d/%m/%Y')
 
+       # Replace NaN values with "-"
+    df_to_view = df_to_view.fillna("-")
+    
+    df_to_view.rename(columns={
+                        "proc_name":"Investigation",
+                        "current_status":"Status",
+                        "order_datetime":"Ordered",
+                        "in_progress": "In progress"
+                    },inplace=True)
+    
     tbl = pn.widgets.Tabulator(
             df_to_view,
+            layout='fit_data_stretch',
             groupby=["patient_id"],
             hidden_columns=["index","order_id", "patient_id"],
             pagination="local",
-            page_size=10,
+            page_size=6,
             selectable="checkbox",
-            disabled=True,
-        )
+            disabled=True
+    )
+
+
     return tbl
+    # def colour_rows(row):
+    #     if row["complete"] != "nan":
+    #         return ['background-color: green'] * len(row)
+    #     else:
+    #         return [''] * len(row)
+    
+    # styled = tbl.style.map(colour_rows, axis=1)
+
+    # return styled
+  
+        
+    
+    
+   

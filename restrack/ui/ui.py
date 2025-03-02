@@ -152,7 +152,7 @@ def refresh_worklist_select():
 worklist_select = initialise_worklist_select()
 
 # Create worklist form with refresh callback
-worklist_form = create_worklist_form(current_user.get("id", 1), refresh_callback=refresh_worklist_select)
+worklist_form = create_worklist_form(current_user.get("id"), refresh_callback=refresh_worklist_select)
 
 # Initialize orders table with empty or default view
 orders_table_placeholder = pn.Row()
@@ -180,6 +180,7 @@ user_welcome = pn.Column(
     f"## Welcome _{pn.state.user.title()}_!",
     align=("center", "center"),
 )
+template.sidebar_width=200
 template.sidebar.append(user_welcome)
 
 #log out
